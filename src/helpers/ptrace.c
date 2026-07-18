@@ -30,7 +30,7 @@ bool ptrace_detach(pid_t target) {
 }
 
 
-bool ptrace_getregs(pid_t target, struct REG_TYPE* regs) {
+bool ptrace_getregs(pid_t target, REG* regs) {
 
 	if (ptrace(PTRACE_GETREGS, target, NULL, regs) == -1) {
 		log_message(ERROR, __func__, "Failed to PTRACE_GETREGS on target PID %d", target);
@@ -41,25 +41,29 @@ bool ptrace_getregs(pid_t target, struct REG_TYPE* regs) {
 
 
 bool ptrace_cont(pid_t target) {
-	struct timespec* sleeptime = malloc(sizeof(struct timespec));
-
-	sleeptime->tv_sec = 0;
-	sleeptime->tv_nsec = 5000000;
+	int status;
 
 	if (ptrace(PTRACE_CONT, target, NULL, NULL) == -1) {
 		log_message(ERROR, __func__, "Failed to PTRACE_CONT on target PID %d", target);
 		return false;
 	}
 
-	nanosleep(sleeptime, NULL);
+	if (waitpid(target, &status, 0) != target) {
+		log_message(ERROR, __func__, "Failed to wait for target PID %d", target);
+		return false;
+	}
 
-	// make sure the target process received SIGTRAP after stopping.
+	if (!WIFSTOPPED(status)) {
+		log_message(ERROR, __func__, "Target PID %d did not stop as expected (status: 0x%x)", target, status);
+		return false;
+	}
+
 	check_target_sig(target);
 	return true;
 }
 
 
-bool ptrace_setregs(pid_t target, struct REG_TYPE* regs) {
+bool ptrace_setregs(pid_t target, REG* regs) {
 	if(ptrace(PTRACE_SETREGS, target, NULL, regs) == -1) {
 		log_message(ERROR, __func__, "Failed to PTRACE_SETREGS on target PID %d", target);
 		return false;
@@ -128,7 +132,7 @@ static void check_target_sig(pid_t target) {
 	}
 }
 
-void restore_state_and_detach(pid_t target, unsigned long addr, void* backup, int datasize, struct REG_TYPE oldregs) {
+void restore_state_and_detach(pid_t target, unsigned long addr, void* backup, int datasize, REG oldregs) {
 	
 	if (!ptrace_write(target, addr, backup, datasize)) {
 		log_message(ERROR, __func__, "Failed to write backup data to target PID %d", target);

@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "arch/arch.h"
+
 #define LINWORM_VERSION_MAJOR 1
 #define LINWORM_VERSION_MINOR 0
 #define LINWORM_VERSION_PATCH 0
@@ -29,11 +31,7 @@ static inline void *align_up_ptr(void *p, size_t a) {
 #define ALIGN_PTR(p, a) (align_up_ptr((void *)(p), (size_t)(a)))
 #define ALIGN_LONG(x)    ALIGN_INT((x), sizeof(long))
 
-#ifdef ARM
-typedef struct user_regs REG;
-#else
-typedef struct user_regs_struct REG;
-#endif
+
 
 
 #endif

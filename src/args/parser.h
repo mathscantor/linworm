@@ -13,6 +13,7 @@
 
 typedef struct {
     pid_t ropts_target_pid;
+    char *ropts_library_path;
     int oopts_verbose;
 } user_args_t;
 

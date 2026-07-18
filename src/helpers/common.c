@@ -21,6 +21,47 @@ long get_target_exec_addr(pid_t target_pid) {
     return addr;
 }
 
+long call_target_func(pid_t target, long inject_addr, REG *regs,
+                      const call_args_t *call) {
+
+    if (call->nargs > CALL_MAX_ARGS) {
+        log_message(ERROR, __func__, "Too many arguments (%d, max %d)", call->nargs, CALL_MAX_ARGS);
+        return -1;
+    }
+
+    arch_set_ip(regs, (unsigned long)inject_addr);
+    arch_set_func(regs, call->func_addr);
+
+    int reg_args = (call->nargs < ARCH_MAX_REG_ARGS) ? call->nargs : ARCH_MAX_REG_ARGS;
+    for (int i = 0; i < reg_args; i++)
+        arch_set_reg_arg(regs, i, call->args[i]);
+
+#if ARCH_MAX_REG_ARGS < CALL_MAX_ARGS
+    if (call->nargs > ARCH_MAX_REG_ARGS) {
+        unsigned long stack_base = arch_stack_args_base(regs);
+        for (int i = ARCH_MAX_REG_ARGS; i < call->nargs; i++) {
+            unsigned long val = call->args[i];
+            unsigned long offset = (unsigned long)(i - ARCH_MAX_REG_ARGS) * ARCH_WORD_SIZE;
+            ptrace_write(target, stack_base + offset, &val, ARCH_WORD_SIZE);
+        }
+    }
+#endif
+
+    if (!ptrace_setregs(target, regs)) {
+        log_message(ERROR, __func__, "Failed to set registers for remote call");
+        return -1;
+    }
+    if (!ptrace_cont(target)) {
+        log_message(ERROR, __func__, "Remote call did not complete");
+        return -1;
+    }
+    if (!ptrace_getregs(target, regs)) {
+        log_message(ERROR, __func__, "Failed to read return value after remote call");
+        return -1;
+    }
+    return arch_get_ret(regs);
+}
+
 long get_target_lib_addr(pid_t pid, char * libname) {
 
 	FILE *fp;
@@ -74,10 +115,10 @@ long get_target_func_addr(pid_t target_pid, const char *func_name) {
     log_message(DEBUG, __func__, "Offset of \"%s\" in injector: 0x%lx", func_name, func_addr_offset);
 
     // Now we need to find the base address of libc in the target process
-    long target_libc_base_addr = get_target_lib_addr(target_pid, "libc.so.6");
-    log_message(DEBUG, __func__, "Base Address of \"%s\" in target: 0x%lx", "libc.so.6", target_libc_base_addr);
+    long target_libc_base_addr = get_target_lib_addr(target_pid, "libc");
+    log_message(DEBUG, __func__, "Base Address of libc in target: 0x%lx", target_libc_base_addr);
     if (target_libc_base_addr == 0) {
-        log_message(ERROR, __func__, "Failed to find base address of %s in target %d", "libc.so.6", target_pid);
+        log_message(ERROR, __func__, "Failed to find base address of libc in target %d", target_pid);
         return -1;
     }
 

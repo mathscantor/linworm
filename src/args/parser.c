@@ -22,7 +22,8 @@ user_args_t parse_args(int argc, char *argv[]) {
 
     user_args_t user_args = {
         .oopts_verbose = 1,
-        .ropts_target_pid = -1
+        .ropts_target_pid = -1,
+        .ropts_library_path = NULL
     };    
 
     struct option long_options[] = {
@@ -30,10 +31,11 @@ user_args_t parse_args(int argc, char *argv[]) {
         {"version", no_argument, 0, 'V'},
         {"verbose", no_argument, 0, 'v'},
         {"pid", required_argument, 0, 'p'},
+        {"library", required_argument, 0, 'l'},
         {0, 0, 0, 0}
     };
 
-    while ((opt = getopt_long(argc, argv, "hVvp:", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hVvp:l:", long_options, &option_index)) != -1) {
         switch (opt) {
             case 'h':
                 usage();
@@ -54,6 +56,9 @@ user_args_t parse_args(int argc, char *argv[]) {
                 }
                 user_args.ropts_target_pid = atoi(optarg);
                 break;
+            case 'l':
+                user_args.ropts_library_path = optarg;
+                break;
             default:
                 usage();
                 exit(EXIT_FAILURE);
@@ -62,6 +67,12 @@ user_args_t parse_args(int argc, char *argv[]) {
 
     if (user_args.ropts_target_pid == -1) {
         log_message(ERROR, __func__, "Target PID is required.");
+        usage();
+        exit(EXIT_FAILURE);
+    }
+
+    if (user_args.ropts_library_path == NULL) {
+        log_message(ERROR, __func__, "Library path is required.");
         usage();
         exit(EXIT_FAILURE);
     }
@@ -79,12 +90,13 @@ user_args_t parse_args(int argc, char *argv[]) {
  * 
  */
 void usage(void){
-    printf("Usage: linworm -p TARGET_PID [-h] [-v] [-V] \n");
+    printf("Usage: linworm -p TARGET_PID -l LIBRARY_PATH [-h] [-v] [-V] \n");
     printf("Options:\n");
     printf("  %-30s %s\n", "-h  | --help", "Show help");
     printf("  %-30s %s\n", "-v  | --verbose", "Enables debug logs.");
     printf("  %-30s %s\n", "-V  | --version", "Show the version of linworm.");
     printf("  %-30s %s\n", "-p  | --pid", "Target process ID to inject into.");
+    printf("  %-30s %s\n", "-l  | --library", "Path to the shared library (.so) to inject.");
     return;
 } 
 

@@ -9,7 +9,8 @@ TESTS_DIR := tests
 PAYLOAD_DIR := $(SRC_DIR)/payload
 TARGET := $(BUILD_DIR)/linworm
 TEST_TARGET := $(BUILD_DIR)/tests/example_target
-PAYLOAD := $(BUILD_DIR)/payload/lib.so
+PAYLOAD_SRCS := $(filter-out $(PAYLOAD_DIR)/common.c,$(wildcard $(PAYLOAD_DIR)/*.c))
+PAYLOADS := $(patsubst $(PAYLOAD_DIR)/%.c,$(BUILD_DIR)/payload/%.so,$(PAYLOAD_SRCS))
 
 # Set compiler and flags based on architecture
 ARCH := $(strip $(ARCH))
@@ -35,10 +36,10 @@ ifeq ($(shell command -v $(CC) 2>/dev/null),)
 endif
 
 # Source files
-SRCS := $(filter-out $(SRC_DIR)/payload/lib.c,$(shell find $(SRC_DIR) -type f -name '*.c' | sort))
+SRCS := $(shell find $(SRC_DIR) -type f -name '*.c' -not -path '$(PAYLOAD_DIR)/*' | sort)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 
-all: $(TARGET) $(TEST_TARGET) $(PAYLOAD)
+all: $(TARGET) $(TEST_TARGET) $(PAYLOADS)
 
 # Build directory
 $(BUILD_DIR):
@@ -56,9 +57,9 @@ $(TEST_TARGET): $(TESTS_DIR)/example_target.c | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
 	$(CC) -Wall -o $@ $<
 
-$(PAYLOAD): $(PAYLOAD_DIR)/lib.c | $(BUILD_DIR)
+$(BUILD_DIR)/payload/%.so: $(PAYLOAD_DIR)/%.c $(PAYLOAD_DIR)/common.c $(PAYLOAD_DIR)/common.h | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	$(CC) -shared -fPIC -Wall -o $@ $<
+	$(CC) -shared -fPIC -Wall -pthread -o $@ $< $(PAYLOAD_DIR)/common.c
 
 # Clean up
 clean:

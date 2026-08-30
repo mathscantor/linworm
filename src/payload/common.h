@@ -30,12 +30,14 @@
  *           payload_stop();
  *   }
  *
- * Send SIGUSR2 to the target process to trigger graceful shutdown.
+ * Send SIGUSR2 to the target process to trigger graceful shutdown
+ * and automatically dlclose() the payload library.
  */
 
 extern volatile sig_atomic_t g_running;
 extern pthread_t g_thread;
 extern int g_pipe_fd[2];
+extern void *g_self_handle;
 
 void payload_signal_handler(int sig);
 int  payload_init(void);

@@ -59,7 +59,7 @@ $(TEST_TARGET): $(TESTS_DIR)/example_target.c | $(BUILD_DIR)
 
 $(BUILD_DIR)/payload/%.so: $(PAYLOAD_DIR)/%.c $(PAYLOAD_DIR)/common.c $(PAYLOAD_DIR)/common.h | $(BUILD_DIR)
 	@mkdir -p $(dir $@)
-	$(CC) -shared -fPIC -Wall -pthread -o $@ $< $(PAYLOAD_DIR)/common.c
+	$(CC) -shared -fPIC -Wall -pthread -o $@ $< $(PAYLOAD_DIR)/common.c -ldl
 
 # Clean up
 clean:
